@@ -33,21 +33,23 @@ func (u User) Save() error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("UserID in signin save ", userID)
 	u.ID = userID
 	return nil
 }
 
-func (u User) ValidateCredentials() error {
+func (u User) ValidateCredentials() (User, error) {
 	query := "SELECT id, password FROM users WHERE email = ?"
 	row := db.DB.QueryRow(query, u.Email)
 	var retrivedPassword string
 	err := row.Scan(&u.ID, &retrivedPassword)
 	if err != nil {
-		return errors.New("Invalid Password")
+		return u, errors.New("Invalid Password")
 	}
+	fmt.Println("UserId in login", u.ID)
 	if !utils.CheckPasswordHash(u.Password, retrivedPassword) {
-		return errors.New("Invalid Password")
+		return u, errors.New("Invalid Password")
 	}
 	fmt.Println("In validate cred ", u)
-	return nil
+	return u, nil
 }

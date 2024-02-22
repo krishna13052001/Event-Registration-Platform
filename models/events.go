@@ -1,7 +1,9 @@
 package models
 
 import (
+	"errors"
 	"example.com/rest-apis/db"
+	"fmt"
 	"time"
 )
 
@@ -11,27 +13,27 @@ type Event struct {
 	Description string    `json:"description"`
 	Location    string    `json:"location"`
 	DateTime    time.Time `json:"dateTime"`
-	UserID      int       `json:"user_id"`
+	UserID      int64     `json:"user_id"`
 }
 
 var events = []Event{}
 
-func (e Event) Save() error {
+func (e Event) Save() (Event, error) {
 	query := `
 	INSERT INTO events(name, description, location, dateTime, user_id) 
 	VALUES (?, ?, ?, ?, ?)`
 	stmt, err := db.DB.Prepare(query)
 	if err != nil {
-		return err
+		return e, err
 	}
 	defer stmt.Close()
 	result, err := stmt.Exec(e.Name, e.Description, e.Location, e.DateTime, e.UserID)
 	if err != nil {
-		return err
+		return e, err
 	}
 	id, err := result.LastInsertId()
 	e.ID = id
-	return err
+	return e, err
 }
 
 func (e Event) Update() error {
@@ -92,4 +94,35 @@ func GetEventById(id int64) (*Event, error) {
 		return nil, err
 	}
 	return &event, nil
+}
+
+func (e Event) Register(userId int64) error {
+	query := "INSERT into registations(event_id, user_id) VALUES (?,?)"
+	stmt, err := db.DB.Prepare(query)
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(e.ID, userId)
+	return err
+}
+
+func (e Event) CancelRegistation(userId int64) error {
+	query := "DELETE FROM registations WHERE event_id = ?  AND user_id = ?"
+	stmt, err := db.DB.Prepare(query)
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+	fmt.Println("Event Id ", e.ID)
+	fmt.Println("User Id ", userId)
+	result, err := stmt.Exec(e.ID, userId)
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return errors.New("No event with the id and userID")
+	}
+	return err
 }
